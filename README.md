@@ -2,7 +2,7 @@
 
 ## Description
 
-This project is a SignalR Logger. It's designed to provide real-time web functionality to our applications.
+This project is a simple SignalR Logger that dumps pushed messages from the server to the console.
 
 ## Usage
 
