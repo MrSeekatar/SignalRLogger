@@ -1,80 +1,112 @@
-﻿using System;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http.Connections;
+﻿using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
+using System.CommandLine;
+using static System.Console;
 
-var url = "https://localhost:51025/socket"; // local Platform
 // local FF "https://localhost:44300/socket"; // local Platform
 // dev FF  https://api-dev.loyalhealth.com/features/socket
 // dev platform  https://api-dev.loyalhealth.com/features/socket
-if (args.Length < 1)
-{
-    Console.WriteLine("Using default url of https://localhost:51025/socket");
-}
-else
-{
-    url = args[0];
-}
-Console.WriteLine($"Connecting to SignalR server at {url}");
 
-var connection = new HubConnectionBuilder()
-    .WithUrl(url, options =>
-    {
-        options.SkipNegotiation = true;
-        options.Transports = HttpTransportType.WebSockets;
-        options.HttpMessageHandlerFactory = (message) =>
+var urlArg = new Option<string>("--url", "URL");
+urlArg.AddAlias("-u");
+
+var jwtArg = new Option<string>("--jwt", "JWT");
+jwtArg.AddAlias("-j");
+
+var rootCommand = new RootCommand("Connect and dump SignalR messages")
+{
+    urlArg,
+    jwtArg,
+};
+
+rootCommand.SetHandler((invocationContext) => {
+    var url = invocationContext.ParseResult.GetValueForOption(urlArg) ?? "https://localhost:51025/socket";
+    var jwt = invocationContext.ParseResult.GetValueForOption(jwtArg) ?? "";
+
+    HeyListen(url, jwt).GetAwaiter().GetResult();
+});
+
+try
+{
+    return await rootCommand.InvokeAsync(args);
+}
+catch (ArgumentException e)
+{
+    WriteLine(e.Message);
+    return 99;
+}
+
+async Task HeyListen(string url, string jwt)
+{
+    WriteLine($"Using JWT: {jwt}");
+    WriteLine($"Connecting to SignalR server at {url}");
+
+    var connection = new HubConnectionBuilder()
+        .WithUrl(url, options =>
         {
-            // always verify the SSL certificate for self signed
-            if (message is HttpClientHandler clientHandler)
-                clientHandler.ServerCertificateCustomValidationCallback +=
-                    (sender, certificate, chain, sslPolicyErrors) => { return true; };
-            return message;
-        };
-    })
-    .ConfigureLogging(logging =>
+            options.SkipNegotiation = true;
+            options.Transports = HttpTransportType.WebSockets;
+            options.HttpMessageHandlerFactory = (message) =>
+            {
+                // always verify the SSL certificate for self signed
+                if (message is HttpClientHandler clientHandler)
+                    clientHandler.ServerCertificateCustomValidationCallback +=
+                        (sender, certificate, chain, sslPolicyErrors) => true;
+                return message;
+            };
+            if (!string.IsNullOrEmpty(jwt))
+                options.AccessTokenProvider = () => Task.FromResult(jwt);
+        })
+        .ConfigureLogging(logging =>
+        {
+            logging.AddConsole();
+            logging.SetMinimumLevel(LogLevel.Information); // set lower if you want to see more
+        })
+        .WithAutomaticReconnect()
+        .Build();
+
+
+    connection.On<addNewMessage>("addNewMessage", (a) =>
     {
-        logging.AddConsole();
-        logging.SetMinimumLevel(LogLevel.Information); // set lower if you want to see more
-    })
-    .WithAutomaticReconnect()
-    .Build();
+        WriteLine($"Got {nameof(addNewMessage)}");
+        WriteLine($"{a.Client.Name}: {a.StatusMessage}");
+        WriteLine($"   Type: {a.Client.ClientType}");
+        WriteLine($"   Status: {a.Client.OnboardingStatus}");
+    });
 
+    connection.On<FeatureFlagsUpdate>("cacheUpdate", (a) =>
+    {
+        WriteLine("Got FeatureFlagsUpdate");
+        WriteLine(a.ToString());
+    });
 
-connection.On<addNewMessage>("addNewMessage", (a) =>
-{
-    Console.WriteLine($"Got {nameof(addNewMessage)}");
-    Console.WriteLine($"{a.Client.Name}: {a.StatusMessage}");
-});
+    connection.On<HealthCheckSignalRMessage>("healthCheckMessage", (a) =>
+    {
+        WriteLine("Got HealthCheckSignalRMessage");
+        WriteLine($"{a.Number}: {a.Status}");
+    });
 
-connection.On<FeatureFlagsUpdate>("cacheUpdate", (a) =>
-{
-    Console.WriteLine("Got FeatureFlagsUpdate");
-    Console.WriteLine(a.ToString());
-});
+    connection.On<ForceLogoutMessage>("forceLogoutMessage", (a) =>
+    {
+        WriteLine("Got ForceLogoutMessage");
+        WriteLine($"{a.UserId} by {a.CallingUserId}");
+    });
 
-connection.On<HealthCheckSignalRMessage>("healthCheckMessage", (a) =>
-{
-    Console.WriteLine("Got HealthCheckSignalRMessage");
-    Console.WriteLine($"{a.Number}: {a.Status}");
-});
+    await connection.StartAsync();
 
-connection.On<ForceLogoutMessage>("forceLogoutMessage", (a) =>
-{
-    Console.WriteLine("Got ForceLogoutMessage");
-    Console.WriteLine($"{a.UserId} by {a.CallingUserId}");
-});
+    WriteLine($"Connected to SignalR server at {url}");
 
-await connection.StartAsync();
+    await Task.Delay(-1);
 
-Console.WriteLine($"Connected to SignalR server at {url}");
-
-await Task.Delay(-1);
-
-await connection.StopAsync();
+    await connection.StopAsync();
+}
 
 class Client {
     public string Name { get; set; } = "";
+    // actually enums, but should be strings in JSON
+    public string OnboardingStatus  { get; set; } = "";
+    public string ClientType  { get; set; } = "";
 }
 class addNewMessage
 {
