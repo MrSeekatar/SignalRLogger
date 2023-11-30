@@ -4,10 +4,6 @@ using Microsoft.Extensions.Logging;
 using System.CommandLine;
 using static System.Console;
 
-// local FF "https://localhost:44300/socket"; // local Platform
-// dev FF  https://api-dev.loyalhealth.com/features/socket
-// dev platform  https://api-dev.loyalhealth.com/features/socket
-
 var urlArg = new Option<string>("--url", "URL");
 urlArg.AddAlias("-u");
 
@@ -23,6 +19,11 @@ var rootCommand = new RootCommand("Connect and dump SignalR messages")
 rootCommand.SetHandler((invocationContext) => {
     var url = invocationContext.ParseResult.GetValueForOption(urlArg) ?? "https://localhost:51025/socket";
     var jwt = invocationContext.ParseResult.GetValueForOption(jwtArg) ?? "";
+    WriteLine($"URL: {url}, you can use as --url are:");
+    WriteLine("   local FF       https://localhost:44300/socket");
+    WriteLine("   local platform https://localhost:51025/socket");
+    WriteLine("   dev FF         https://api-dev.loyalhealth.com/features/socket");
+    WriteLine("   dev platform   https://app-dev.loyalhealth.com/socket");
 
     HeyListen(url, jwt).GetAwaiter().GetResult();
 });
