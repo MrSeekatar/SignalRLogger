@@ -10,7 +10,6 @@ urlArg.IsRequired = true;
 
 var jwtArg = new Option<string>("--jwt", "JWT");
 jwtArg.AddAlias("-j");
-jwtArg.IsRequired = true;
 
 var msgArg = new Option<string>("--msg", "Name of SignalR Message");
 msgArg.AddAlias("-m");
@@ -25,7 +24,7 @@ var rootCommand = new RootCommand("Connect and dump SignalR messages")
 
 rootCommand.SetHandler((invocationContext) => {
     var url = invocationContext.ParseResult.GetValueForOption(urlArg);
-    var jwt = invocationContext.ParseResult.GetValueForOption(jwtArg);
+    var jwt = invocationContext.ParseResult.GetValueForOption(jwtArg) ?? "";
     var msg = invocationContext.ParseResult.GetValueForOption(msgArg);
 
     WriteLine($"URL: {url}, you can use as --url are:");

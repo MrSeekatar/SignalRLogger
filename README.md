@@ -17,7 +17,7 @@ Usage:
 
 Options:
   -u, --url <url> (REQUIRED)  URL
-  -j, --jwt <jwt> (REQUIRED)  JWT
+  -j, --jwt <jwt>             JWT
   -m, --msg <msg> (REQUIRED)  Name of SignalR Message
   --version                   Show version information
   -?, -h, --help              Show help and usage information
