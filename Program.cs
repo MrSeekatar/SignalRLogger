@@ -70,28 +70,22 @@ async Task HeyListen(string url, string jwt)
 
     connection.On<addNewMessage>("addNewMessage", (a) =>
     {
-        WriteLine($"Got {nameof(addNewMessage)}");
-        WriteLine($"{a.Client.Name}: {a.StatusMessage}");
-        WriteLine($"   Type: {a.Client.ClientType}");
-        WriteLine($"   Status: {a.Client.OnboardingStatus}");
+        WriteLine($"{nameof(addNewMessage)}: {a.Client.Name}: {a.StatusMessage} (Type: {a.Client.ClientType} Status: {a.Client.OnboardingStatus})");
     });
 
     connection.On<FeatureFlagsUpdate>("cacheUpdate", (a) =>
     {
-        WriteLine("Got FeatureFlagsUpdate");
-        WriteLine(a.ToString());
+        WriteLine($"{nameof(FeatureFlagsUpdate)}: {a.ToString()}");
     });
 
     connection.On<HealthCheckSignalRMessage>("healthCheckMessage", (a) =>
     {
-        WriteLine("Got HealthCheckSignalRMessage");
-        WriteLine($"{a.Number}: {a.Status}");
+        WriteLine($"{nameof(HealthCheckSignalRMessage)}: {a.Number}: {a.Status}");
     });
 
     connection.On<ForceLogoutMessage>("forceLogoutMessage", (a) =>
     {
-        WriteLine("Got ForceLogoutMessage");
-        WriteLine($"{a.UserId} by {a.CallingUserId}");
+        WriteLine($"{nameof(ForceLogoutMessage)}: {a.UserId} by {a.CallingUserId}");
     });
 
     await connection.StartAsync();
